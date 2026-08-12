@@ -1,0 +1,18 @@
+# Run artifacts (created by run_test.ps1)
+out/
+
+# Log files
+*.log
+build.log
+run.log
+smoke.log
+
+# Model files (bring your own; do not commit)
+*.gguf
+
+# Governor sentinel file
+STOP.collect
+
+# Python
+__pycache__/
+*.pyc
