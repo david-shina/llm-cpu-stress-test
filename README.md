@@ -49,6 +49,38 @@ No GPU, no CUDA, no Linux dual-boot required.
 
 ---
 
+## Quick start (one command)
+
+If you've already done the one-time setup below (Docker, LibreHardwareMonitor,
+Python installed), the fastest path is the **`run.ps1` bootstrap script** — it
+checks all prerequisites, prompts for anything missing, auto-builds the Docker
+image on first run, and runs the test:
+
+```powershell
+git clone https://github.com/david-shina/llm-cpu-stress-test.git
+cd llm-cpu-stress-test
+# drop your model.gguf in this folder (or let run.ps1 prompt you for the path)
+.\run.ps1
+```
+
+`run.ps1` will:
+1. Verify Docker, Python, and LibreHardwareMonitor are reachable
+2. Prompt for the LHM API URL if `localhost:8085` doesn't respond
+3. Prompt for your GGUF path if none is found in the folder
+4. Auto-build the Docker image if it isn't built yet (~10 min, first time only)
+5. Prompt you to choose **Smoke** (single prompt, ~2 min) or **Full** (4 stages, 3–6 min)
+6. Run the test and print the path to `out\report.md`
+
+Non-interactive mode (skip all prompts):
+
+```powershell
+.\run.ps1 -Smoke -LhmApiUrl "http://localhost:8085/data.json" -GgufPath ".\model.gguf"
+```
+
+Prefer the manual step-by-step? Continue to the next section.
+
+---
+
 ## Complete step-by-step usage
 
 ### Phase A — One-time setup (~15 minutes, do this once)
@@ -166,6 +198,9 @@ LHM preflight PASSED.
 If it fails, see [Troubleshooting](#troubleshooting).
 
 ### Phase D — Run the test
+
+> **Shortcut:** `.\run.ps1` does Phases B, C, D, and E in one go (and prompts
+> for anything missing). The steps below are the manual equivalent.
 
 You have **two modes**:
 
@@ -474,10 +509,11 @@ llm-cpu-stress-test/
 ├── README.md              This file
 ├── LICENSE                MIT
 ├── .gitignore             Excludes out/, logs, *.gguf
+├── run.ps1                One-shot bootstrap (start here — runs all the steps for you)
 ├── Dockerfile             Builds the llm-cpp image (ubuntu:22.04 + llama.cpp compiled from source)
-├── build.ps1              Wraps `docker build` (run once)
-├── run_test.ps1           Main entry point — orchestrates the whole test
-├── check_lhm.ps1          Preflight — verifies LHM is reachable (run before run_test)
+├── build.ps1              Wraps `docker build` (run once, or let run.ps1 auto-invoke)
+├── run_test.ps1           Main orchestrator — run.ps1 delegates to this
+├── check_lhm.ps1          Preflight — verifies LHM is reachable (run.ps1 auto-invokes)
 ├── collect_thermal.ps1    Background job — writes thermal.csv every 1 second
 ├── watch_and_halt.ps1     Background job — kills container at halt temperature
 ├── analyze.py             Merges all outputs into out/report.md
