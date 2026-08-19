@@ -101,8 +101,31 @@ function Get-IdleTemp {
                 $tg = $null
                 foreach ($c in $n.Children) { if ($c.Text -match '^Temperatures$') { $tg = $c; break } }
                 if ($tg -and $tg.Children) {
+                    # Intel: "CPU Package" | AMD: "Tctl/Tdie", "Tctl", "Tdie" | Generic: "Package"
+                    # Use contains match so "Tctl/Tdie" is caught (AMD names it that way).
                     foreach ($s in $tg.Children) {
-                        if ($s.Text -match '^CPU Package$|^Tctl$|^CPU$') {
+                        if ($s.Text -match 'CPU Package') {
+                            $raw = [string]$s.Value
+                            $m = [regex]::Match($raw, '^[-+]?[0-9]*\.?[0-9]+')
+                            if ($m.Success) { return [double]$m.Value }
+                        }
+                    }
+                    foreach ($s in $tg.Children) {
+                        if ($s.Text -match 'Tctl') {
+                            $raw = [string]$s.Value
+                            $m = [regex]::Match($raw, '^[-+]?[0-9]*\.?[0-9]+')
+                            if ($m.Success) { return [double]$m.Value }
+                        }
+                    }
+                    foreach ($s in $tg.Children) {
+                        if ($s.Text -match 'Tdie') {
+                            $raw = [string]$s.Value
+                            $m = [regex]::Match($raw, '^[-+]?[0-9]*\.?[0-9]+')
+                            if ($m.Success) { return [double]$m.Value }
+                        }
+                    }
+                    foreach ($s in $tg.Children) {
+                        if ($s.Text -match 'Package') {
                             $raw = [string]$s.Value
                             $m = [regex]::Match($raw, '^[-+]?[0-9]*\.?[0-9]+')
                             if ($m.Success) { return [double]$m.Value }

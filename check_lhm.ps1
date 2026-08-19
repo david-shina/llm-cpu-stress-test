@@ -42,7 +42,7 @@ function Find-CpuPackageTemp {
     # Match CPU node by HardwareId (preferred) or by Text containing "Intel"/"AMD"/"Ryzen" + "Core"/"EPYC".
     $isCpu = $false
     if ($Node.HardwareId -and $Node.HardwareId -match '/intelcpu/|/amdcpu/') { $isCpu = $true }
-    elseif ($Node.Text -match 'Intel Core i[3579]|AMD Ryzen|AMD EPYC|12th Gen Intel|13th Gen Intel|11th Gen Intel|10th Gen Intel') { $isCpu = $true }
+    elseif ($Node.Text -match 'Intel Core|AMD Ryzen|AMD EPYC|12th Gen|13th Gen|11th Gen|10th Gen') { $isCpu = $true }
 
     if ($isCpu -and $Node.Children) {
         $tempGroup = $null
@@ -50,12 +50,19 @@ function Find-CpuPackageTemp {
             if ($c.Text -and $c.Text -match '^Temperatures$') { $tempGroup = $c; break }
         }
         if ($tempGroup -and $tempGroup.Children) {
-            # Prefer exact "CPU Package"; fallback to any "Package" / "Tctl" within the temperature group.
+            # Intel: "CPU Package" | AMD: "Tctl/Tdie", "Tctl", "Tdie" | Generic: "CPU"
+            # Use contains match so "Tctl/Tdie" is caught (AMD names it that way).
             foreach ($s in $tempGroup.Children) {
-                if ($s.Text -and $s.Text -match '^CPU Package$|^Tctl$|^CPU$') { return $s }
+                if ($s.Text -and $s.Text -match 'CPU Package') { return $s }
             }
             foreach ($s in $tempGroup.Children) {
-                if ($s.Text -and $s.Text -match 'Package|Tctl') { return $s }
+                if ($s.Text -and $s.Text -match 'Tctl') { return $s }
+            }
+            foreach ($s in $tempGroup.Children) {
+                if ($s.Text -and $s.Text -match 'Tdie') { return $s }
+            }
+            foreach ($s in $tempGroup.Children) {
+                if ($s.Text -and $s.Text -match 'Package') { return $s }
             }
         }
     }
@@ -74,7 +81,7 @@ $pkg = Find-CpuPackageTemp -Node $resp
 
 if (-not $pkg) {
     Write-Host "FAIL: API reachable but no CPU package temperature sensor found in the tree." -ForegroundColor Red
-    Write-Host "Tip: open LHM, confirm 'CPU Package' is visible under the CPU's Temperatures group, then retry." -ForegroundColor Yellow
+    Write-Host "Tip: open LHM, confirm 'CPU Package' (Intel) or 'Tctl'/'Tdie' (AMD Ryzen) is visible under the CPU's Temperatures group, then retry." -ForegroundColor Yellow
     exit 1
 }
 

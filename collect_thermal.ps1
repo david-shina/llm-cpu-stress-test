@@ -32,16 +32,24 @@ function Find-CpuPackageTemp {
     if (-not $Node) { return $null }
     $isCpu = $false
     if ($Node.HardwareId -and $Node.HardwareId -match '/intelcpu/|/amdcpu/') { $isCpu = $true }
-    elseif ($Node.Text -match 'Intel Core i[3579]|AMD Ryzen|AMD EPYC|12th Gen Intel|13th Gen Intel|11th Gen Intel|10th Gen Intel') { $isCpu = $true }
+    elseif ($Node.Text -match 'Intel Core|AMD Ryzen|AMD EPYC|12th Gen|13th Gen|11th Gen|10th Gen') { $isCpu = $true }
     if ($isCpu -and $Node.Children) {
         $tempGroup = $null
         foreach ($c in $Node.Children) { if ($c.Text -and $c.Text -match '^Temperatures$') { $tempGroup = $c; break } }
         if ($tempGroup -and $tempGroup.Children) {
+            # Intel: "CPU Package" | AMD: "Tctl/Tdie", "Tctl", "Tdie" | Generic: "Package"
+            # Use contains match so "Tctl/Tdie" is caught (AMD names it that way).
             foreach ($s in $tempGroup.Children) {
-                if ($s.Text -and $s.Text -match '^CPU Package$|^Tctl$|^CPU$') { return $s }
+                if ($s.Text -and $s.Text -match 'CPU Package') { return $s }
             }
             foreach ($s in $tempGroup.Children) {
-                if ($s.Text -and $s.Text -match 'Package|Tctl') { return $s }
+                if ($s.Text -and $s.Text -match 'Tctl') { return $s }
+            }
+            foreach ($s in $tempGroup.Children) {
+                if ($s.Text -and $s.Text -match 'Tdie') { return $s }
+            }
+            foreach ($s in $tempGroup.Children) {
+                if ($s.Text -and $s.Text -match 'Package') { return $s }
             }
         }
     }
