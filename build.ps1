@@ -27,7 +27,9 @@ if (-not (Test-Path -LiteralPath $dockerfile)) {
 Write-Host "Building image '$Tag' with LLAMA_COMMIT=$LlamaCommit ..." -ForegroundColor Cyan
 # Docker writes progress to stderr; merge streams so PowerShell doesn't surface
 # each progress line as a NativeCommandError under ErrorActionPreference=Stop.
-$exit = & { docker build --build-arg "LLAMA_COMMIT=$LlamaCommit" -t $Tag -f $dockerfile $here 2>&1 | ForEach-Object { Write-Host $_ } ; $LASTEXITCODE }
+# Switch to Continue INSIDE the &{} block so stderr lines stream as text while
+# we still capture the real exit code via $LASTEXITCODE for the failure check.
+$exit = & { $ErrorActionPreference = 'Continue'; docker build --build-arg "LLAMA_COMMIT=$LlamaCommit" -t $Tag -f $dockerfile $here 2>&1 | ForEach-Object { Write-Host $_ } ; $LASTEXITCODE }
 if ($exit -ne 0) {
     throw "docker build failed (exit $exit)"
 }
