@@ -14,7 +14,15 @@ FROM ubuntu:22.04
 ARG LLAMA_COMMIT=HEAD
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# apt-get update can fail with exit 100 on Docker Desktop for Windows when the
+# WSL2 DNS resolver is flaky. Retry up to 5 times with a short sleep, and fall
+# back to Google DNS if the default resolvers are unreachable.
+RUN echo 'nameserver 8.8.8.8' > /etc/resolv.conf && \
+    echo 'nameserver 1.1.1.1' >> /etc/resolv.conf && \
+    for i in 1 2 3 4 5; do \
+        apt-get update && break || { echo "apt-get update attempt $i failed, retrying in 5s..."; sleep 5; }; \
+    done && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     git \
@@ -27,9 +35,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
-# Clone latest master (shallow). If LLAMA_COMMIT != HEAD, fetch and checkout that
-# exact ref; otherwise build the tip of master that was just cloned.
-RUN git clone --depth 1 https://github.com/ggerganov/llama.cpp.git llama.cpp && \
+# Clone latest master (shallow). Retry on network failure (common on WSL2).
+# If LLAMA_COMMIT != HEAD, fetch and checkout that exact ref; otherwise build
+# the tip of master that was just cloned.
+RUN for i in 1 2 3 4 5; do \
+        git clone --depth 1 https://github.com/ggerganov/llama.cpp.git llama.cpp && break || \
+        { echo "git clone attempt $i failed, retrying in 5s..."; sleep 5; rm -rf llama.cpp; }; \
+    done && \
     cd llama.cpp && \
     if [ "$LLAMA_COMMIT" != "HEAD" ]; then \
         git fetch --depth 1 origin "$LLAMA_COMMIT" && git checkout "$LLAMA_COMMIT"; \
@@ -51,8 +63,12 @@ RUN mkdir build && cd build && \
 ENV PATH="/opt/llama.cpp/build/bin:${PATH}"
 
 # Python helpers inside container (used by analyze.py if re-run there).
-RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir requests
+# Retry on network failure (common on WSL2).
+RUN for i in 1 2 3; do \
+        pip3 install --no-cache-dir --upgrade pip && \
+        pip3 install --no-cache-dir requests && break || \
+        { echo "pip install attempt $i failed, retrying in 5s..."; sleep 5; }; \
+    done
 
 WORKDIR /test
 COPY llm_run.sh /test/llm_run.sh
